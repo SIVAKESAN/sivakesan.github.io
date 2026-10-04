@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Jeyanthan Sivakesan Portfolio</title>
+    <meta name="description" content="Jeyanthan Sivakesan: civil engineer, photographer and graphic designer based in Sri Lanka.">
+    <meta property="og:title" content="Jeyanthan Sivakesan | Portfolio">
+    <meta property="og:description" content="Civil engineering undergraduate, photographer and graphic designer based in Sri Lanka.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="images/me-on-site.jpg">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <a class="skip-link" href="#about">Skip to content</a>
+
+    <!-- NAVIGATION -->
+    <header class="nav" id="nav">
+        <a href="#home" class="nav-logo" data-bind="logo">Jeyanthan</a>
+        <nav aria-label="Main">
+            <ul class="nav-links" id="navLinks">
+                <li><a href="#about">About</a></li>
+                <li><a href="#engineering">Engineering</a></li>
+                <li><a href="#photography">Photography</a></li>
+                <li><a href="#design">Design</a></li>
+                <li><a href="#experience">Experience</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </nav>
+        <div class="nav-actions">
+            <button class="icon-btn" id="themeToggle" type="button" aria-label="Switch colour theme">
+                <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>
+                <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>
+            </button>
+            <button class="menu-btn" id="menuBtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="navLinks">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <!-- HERO -->
+        <section class="hero" id="home">
+            <div class="hero-text">
+                <p class="eyebrow" data-bind="eyebrow"></p>
+                <h1 class="hero-name" data-bind="name"></h1>
+                <ul class="hero-roles" data-bind="roles"></ul>
+                <p class="hero-tagline" data-bind="tagline"></p>
+                <div class="btn-row">
+                    <a href="#engineering" class="btn btn-primary">See my work</a>
+                    <a href="#contact" class="btn btn-outline">Get in touch</a>
+                </div>
+            </div>
+            <figure class="hero-photo">
+                <img data-bind="heroImage" alt="" fetchpriority="high">
+                <figcaption class="title-block" data-bind="heroCaption"></figcaption>
+            </figure>
+        </section>
+
+        <!-- ABOUT -->
+        <section class="section" id="about">
+            <div class="section-head">
+                <p class="eyebrow">About</p>
+                <h2 class="section-title" data-bind="aboutHeading"></h2>
+            </div>
+            <div class="about-grid">
+                <div class="about-photo"><img data-bind="portrait" alt="" loading="lazy"></div>
+                <div class="about-text">
+                    <h3 data-bind="hello"></h3>
+                    <div data-bind="aboutParagraphs"></div>
+                    <div class="stats" data-bind="stats"></div>
+                    <div class="btn-row" data-bind="cvRow"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SERVICES -->
+        <section class="section" id="services">
+            <div class="section-head">
+                <p class="eyebrow">Expertise</p>
+                <h2 class="section-title">What I do</h2>
+            </div>
+            <div class="services" data-bind="services"></div>
+        </section>
+
+        <!-- ENGINEERING -->
+        <section class="section" id="engineering">
+            <div class="section-head">
+                <p class="eyebrow">Engineering</p>
+                <h2 class="section-title">Civil engineering portfolio</h2>
+                <p class="section-sub">University projects, research work and technical analysis. Select a project for the full write-up.</p>
+            </div>
+            <div class="eng-grid" data-bind="engineering"></div>
+        </section>
+
+        <!-- PHOTOGRAPHY -->
+        <section class="section" id="photography">
+            <div class="section-head">
+                <p class="eyebrow">Photography</p>
+                <h2 class="section-title">Capturing stories through the lens</h2>
+                <p class="section-sub">Graduation ceremonies, portraits, events and commercial work.</p>
+            </div>
+            <div class="photo-grid" data-bind="photography"></div>
+        </section>
+
+        <!-- DESIGN -->
+        <section class="section" id="design">
+            <div class="section-head">
+                <p class="eyebrow">Graphic design</p>
+                <h2 class="section-title">Visual identity &amp; creative design</h2>
+                <p class="section-sub">Sports posters, tournament branding, social media campaigns and brand identities.</p>
+            </div>
+            <div class="cards" data-bind="design"></div>
+        </section>
+
+        <!-- SKILLS -->
+        <section class="section" id="skills">
+            <div class="section-head">
+                <p class="eyebrow">Skills</p>
+                <h2 class="section-title">Technical &amp; creative toolkit</h2>
+            </div>
+            <div class="skills" data-bind="skills"></div>
+        </section>
+
+        <!-- EXPERIENCE -->
+        <section class="section" id="experience">
+            <div class="section-head">
+                <p class="eyebrow">Experience</p>
+                <h2 class="section-title">Professional journey</h2>
+            </div>
+            <ol class="timeline" data-bind="experience"></ol>
+        </section>
+
+        <!-- TESTIMONIALS (hidden until you add real ones in content.js) -->
+        <section class="section" id="testimonials" hidden>
+            <div class="section-head">
+                <p class="eyebrow">Testimonials</p>
+                <h2 class="section-title">What clients say</h2>
+            </div>
+            <div class="quotes" data-bind="testimonials"></div>
+        </section>
+
+        <!-- CONTACT -->
+        <section class="section" id="contact">
+            <div class="section-head">
+                <p class="eyebrow">Contact</p>
+                <h2 class="section-title">Let's build something together</h2>
+            </div>
+            <div class="contact-grid">
+                <div class="contact-info">
+                    <p>Whether you need engineering support, a photographer or design work, I'd like to hear from you.</p>
+                    <ul class="contact-links" data-bind="contactLinks"></ul>
+                </div>
+                <form class="contact-form" id="contactForm" novalidate>
+                    <label for="cf-name">Name</label>
+                    <input id="cf-name" name="name" type="text" autocomplete="name" required>
+                    <label for="cf-email">Email</label>
+                    <input id="cf-email" name="email" type="email" autocomplete="email" required>
+                    <label for="cf-message">Message</label>
+                    <textarea id="cf-message" name="message" rows="5" required placeholder="Tell me about your project"></textarea>
+                    <button class="btn btn-primary" type="submit">Send message</button>
+                    <p class="form-status" id="formStatus" role="status" aria-live="polite"></p>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p data-bind="footer"></p>
+    </footer>
+
+    <!-- LIGHTBOX -->
+    <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Photo viewer" hidden>
+        <button class="lb-btn lb-close" id="lbClose" type="button" aria-label="Close">✕</button>
+        <button class="lb-btn lb-prev" id="lbPrev" type="button" aria-label="Previous photo">←</button>
+        <figure>
+            <img id="lbImg" alt="">
+            <figcaption id="lbCaption"></figcaption>
+        </figure>
+        <button class="lb-btn lb-next" id="lbNext" type="button" aria-label="Next photo">→</button>
+    </div>
+
+    <!-- PROJECT DETAIL -->
+    <div class="detail" id="detail" role="dialog" aria-modal="true" aria-labelledby="detailTitle" hidden>
+        <button class="detail-close" id="detailClose" type="button" aria-label="Close project">✕</button>
+        <div id="detailBody"></div>
+    </div>
+
+    <noscript><p class="noscript">This site needs JavaScript turned on to show its content.</p></noscript>
+
+    <script src="content.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
