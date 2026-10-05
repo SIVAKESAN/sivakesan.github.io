@@ -57,6 +57,8 @@ button { cursor: pointer; }
 .side button:hover { color: var(--fg); background: var(--bg); }
 .side button[aria-current="true"] { color: var(--fg); background: var(--bg); box-shadow: inset 3px 0 0 var(--accent); }
 .side .count { font-family: var(--font-mono); font-size: 0.7rem; opacity: 0.7; }
+.side .grp { font: 500 0.66rem var(--font-mono); text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); padding: 1rem 0.8rem 0.3rem; }
+.side .grp:first-child { padding-top: 0.3rem; }
 .editor { overflow-y: auto; padding: 24px clamp(16px, 3vw, 36px) 80px; }
 .editor-inner { max-width: 720px; display: flex; flex-direction: column; gap: 1.2rem; }
 .editor h1 { font-family: var(--font-display); font-size: 1.6rem; letter-spacing: -0.02em; }
@@ -146,6 +148,7 @@ dialog::backdrop { background: rgba(0,0,0,0.45); }
     .side { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 6px; }
     .side button { white-space: nowrap; }
     .side .count { display: none; }
+    .side .grp { display: none; }
     .side button[aria-current="true"] { box-shadow: inset 0 -2px 0 var(--accent); }
     .img-field { grid-template-columns: 1fr; }
 }
@@ -226,12 +229,16 @@ var T = function (key, label, extra) { return Object.assign({ key: key, label: l
 var TA = function (key, label, extra) { return T(key, label, Object.assign({ type: 'textarea' }, extra || {})); };
 var STAT = { type: 'list', itemTitle: function (s) { return (s.number || '') + ' ' + (s.label || ''); }, newItem: function () { return { number: '', label: '' }; },
     fields: [T('number', 'Number', { placeholder: '50+' }), T('label', 'Label', { placeholder: 'Projects' })], half: true };
+var FACT = { type: 'list', itemTitle: function (s) { return (s.label || '') + (s.value ? ': ' + s.value : ''); }, newItem: function () { return { label: '', value: '' }; },
+    fields: [T('label', 'Label', { placeholder: 'Field', half: true }), T('value', 'Text', { placeholder: 'Civil Engineering', half: true })] };
+var TIMELINE = { type: 'list', itemTitle: function (e) { return e.title; }, newItem: function () { return { years: '', title: '', text: '' }; },
+    fields: [T('years', 'Years', { placeholder: '2024 – Present' }), T('title', 'Title'), TA('text', 'Description')] };
 
 function projectFields(kind) {
     var f = [
         T('title', 'Title', { required: true }),
         T('slug', 'Link name', { hint: 'Used in the project link: yoursite.com/#work-link-name. Fills in from the title.' }),
-        T('discipline', kind === 'design' ? 'Category' : 'Discipline', { half: true }),
+        T('discipline', kind === 'design' ? 'Category' : 'Discipline', { half: true, hint: 'Creates the filter buttons on the page.' }),
         T('year', 'Year', { half: true }),
         T('client', 'Client', { half: true }),
         { key: 'image', label: 'Cover image', type: 'image', hint: kind === 'design' ? 'Leave empty for a plain cover.' : 'Leave empty for a drawing-sheet cover.' },
@@ -251,58 +258,97 @@ function projectFields(kind) {
 }
 function newProject() { return { slug: '', title: '', discipline: '', year: String(new Date().getFullYear()), client: '', image: '', summary: '', tags: [], overview: '', role: '', challenge: '', process: '', tools: [], deliverables: '', results: '', stats: [], gallery: [] }; }
 
+/* The text fields every section page has (Engineering, Graphic Design, Photography) */
+function pageFields(k) {
+    var what = k === 'photography' ? 'photos' : k === 'design' ? 'designs' : 'projects';
+    return [
+        T('navLabel', 'Name in the top menu', { half: true }),
+        { key: 'accent', label: 'Section colour', type: 'color', half: true },
+        T('heading', 'Page heading'),
+        TA('intro', 'Introduction', { rows: 3 }),
+        { key: 'focus', label: 'Topics', type: 'tags', hint: 'Shown as small pills under the introduction and on the home page card.' },
+        Object.assign({ key: 'facts', label: 'Info box (about 3 rows)' }, FACT),
+        TA('blurb', 'Short text for the home page card', { rows: 2 }),
+        { key: 'homeImage', label: 'Home page card photo', type: 'image', hint: k === 'engineering' ? 'Optional. Leave empty to show a drawing.' : 'Optional.' },
+        T('listTitle', 'Heading above the ' + what),
+        T('skillsTitle', 'Tools heading', { placeholder: 'Software & methods' }),
+        { key: 'skills', label: 'Tools', type: 'tags', hint: 'Separate with commas.' },
+        T('timelineTitle', 'Experience heading', { placeholder: 'Experience' }),
+        Object.assign({ key: 'timeline', label: 'Experience' }, TIMELINE),
+        T('ctaHeading', 'Closing banner heading'),
+        TA('ctaText', 'Closing banner text', { rows: 2 })
+    ];
+}
+
+/* id = sidebar button · path = where the data lives inside content.js · anchor = what the preview jumps to */
 var SECTIONS = [
-    { key: 'profile', label: 'You', anchor: 'home', help: 'Your name, roles and main photos.', kind: 'object', fields: [
+    { id: 'profile', group: 'General', label: 'You', anchor: 'home', kind: 'object', path: ['profile'], help: 'Your name and the main photos.', fields: [
         T('firstName', 'First name', { half: true }), T('lastName', 'Last name', { half: true }),
         T('initials', 'Initials', { half: true }), T('location', 'Location', { half: true }),
         T('university', 'University'),
         { key: 'roles', label: 'Roles', type: 'tags', hint: 'Separate with commas.' },
         TA('tagline', 'Tagline'),
-        { key: 'heroImage', label: 'Main photo (top of the page)', type: 'image' },
+        { key: 'heroImage', label: 'Main photo (top of the home page)', type: 'image' },
         T('heroImageAlt', 'Main photo description', { hint: 'For screen readers and search engines.' }),
         { key: 'portrait', label: 'About photo', type: 'image' },
         T('portraitAlt', 'About photo description'),
         T('cvUrl', 'CV link', { type: 'url', hint: 'A link to your CV PDF, e.g. files/Jeyanthan-CV.pdf or a Google Drive link. Leave empty to hide the button.' })
     ] },
-    { key: 'about', label: 'About', anchor: 'about', kind: 'object', fields: [
+    { id: 'about', group: 'General', label: 'About', anchor: 'about', kind: 'object', path: ['about'], fields: [
         T('heading', 'Heading'),
         { key: 'paragraphs', label: 'Paragraphs', type: 'strings' },
         Object.assign({ key: 'stats', label: 'Numbers' }, STAT)
     ] },
-    { key: 'services', label: 'What I do', anchor: 'services', kind: 'list', itemTitle: function (s) { return s.title; },
-        newItem: function () { return { title: '', text: '', tags: [], link: '#' }; },
-        fields: [T('title', 'Title'), TA('text', 'Description'), { key: 'tags', label: 'Tags', type: 'tags' },
-            { key: 'link', label: 'Button goes to', type: 'select', options: [['#engineering', 'Engineering section'], ['#photography', 'Photography section'], ['#design', 'Design section'], ['#contact', 'Contact section']] }] },
-    { key: 'engineering', label: 'Engineering', anchor: 'engineering', kind: 'list', help: 'Each project gets its own page when clicked.', itemTitle: function (p) { return p.title; }, itemImage: function (p) { return p.image; }, newItem: newProject, fields: projectFields('engineering') },
-    { key: 'photography', label: 'Photography', anchor: 'photography', kind: 'list', help: 'Upload a photo, give it a title, done. Photos open full screen when clicked.', itemTitle: function (p) { return p.title; }, itemImage: function (p) { return p.image; },
-        newItem: function () { return { image: '', title: '', category: '', year: String(new Date().getFullYear()), alt: '' }; },
-        fields: [{ key: 'image', label: 'Photo', type: 'image' }, T('title', 'Title'), T('category', 'Category', { half: true }), T('year', 'Year', { half: true }), T('alt', 'Description', { hint: 'What the photo shows, for screen readers.' })] },
-    { key: 'design', label: 'Graphic design', anchor: 'design', kind: 'list', itemTitle: function (p) { return p.title; }, itemImage: function (p) { return p.image; }, newItem: newProject, fields: projectFields('design') },
-    { key: 'skills', label: 'Skills', anchor: 'skills', kind: 'groups', help: 'Groups of skills. Separate skills with commas.' },
-    { key: 'experience', label: 'Experience', anchor: 'experience', kind: 'list', help: 'Put the newest first. Use the arrows to change the order.', itemTitle: function (e) { return e.title; },
-        newItem: function () { return { years: '', title: '', text: '' }; },
-        fields: [T('years', 'Years', { placeholder: '2024 – Present' }), T('title', 'Title'), TA('text', 'Description')] },
-    { key: 'testimonials', label: 'Testimonials', anchor: 'testimonials', kind: 'list', help: 'Only add real quotes from real people. The section stays hidden while this is empty.', itemTitle: function (q) { return q.author; },
+    { id: 'testimonials', group: 'General', label: 'Testimonials', anchor: 'testimonials', kind: 'list', path: ['testimonials'], help: 'Only add real quotes from real people. The section stays hidden while this is empty.', itemTitle: function (q) { return q.author; },
         newItem: function () { return { quote: '', author: '', year: '' }; },
         fields: [TA('quote', 'Quote'), T('author', 'Name and role', { half: true }), T('year', 'Year', { half: true })] },
-    { key: 'contact', label: 'Contact', anchor: 'contact', kind: 'object', help: 'Anything left empty is hidden on the site.', fields: [
+    { id: 'contact', group: 'General', label: 'Contact', anchor: 'contact', kind: 'object', path: ['contact'], help: 'Anything left empty is hidden on the site.', fields: [
         T('email', 'Email', { type: 'email', half: true }), T('phone', 'Phone', { type: 'tel', half: true }),
         T('whatsapp', 'WhatsApp number', { hint: 'With country code, e.g. 94771234567', half: true }),
         T('instagram', 'Instagram link', { type: 'url', half: true }), T('linkedin', 'LinkedIn link', { type: 'url', half: true }),
         T('behance', 'Behance link', { type: 'url', half: true }), T('github', 'GitHub link', { type: 'url', half: true }),
         T('formEndpoint', 'Form delivery link (optional)', { type: 'url', hint: 'Paste a Formspree form link to receive contact-form messages in your inbox.' })
     ] },
-    { key: 'theme', label: 'Look & feel', anchor: 'home', kind: 'object', fields: [
-        { key: 'accent', label: 'Accent colour', type: 'color', hint: 'Used for buttons, links and markers.' },
+    { id: 'theme', group: 'General', label: 'Look & feel', anchor: 'home', kind: 'object', path: ['theme'], help: 'Each of the three sections has its own colour. Change it on that section\'s "Page & text" tab.', fields: [
+        { key: 'accent', label: 'Home page colour', type: 'color', hint: 'Used for the logo dot, buttons and markers on the home page.' },
         { key: 'defaultMode', label: 'Light or dark', type: 'select', options: [['system', "Follow the visitor's device"], ['light', 'Always light'], ['dark', 'Always dark']] }
-    ] }
+    ] },
+
+    { id: 'engineering-page', group: 'Engineering', label: 'Page & text', title: 'Engineering: page & text', anchor: 'engineering', kind: 'object', path: ['engineering'], help: 'The words, colour, tools and experience on the Engineering page.', fields: pageFields('engineering') },
+    { id: 'engineering-items', group: 'Engineering', label: 'Projects', title: 'Engineering projects', anchor: 'engineering', kind: 'list', path: ['engineering', 'projects'], help: 'Each project gets its own page when clicked.', itemTitle: function (p) { return p.title; }, itemImage: function (p) { return p.image; }, newItem: newProject, fields: projectFields('engineering') },
+
+    { id: 'design-page', group: 'Graphic Design', label: 'Page & text', title: 'Graphic Design: page & text', anchor: 'design', kind: 'object', path: ['design'], help: 'The words, colour, tools and experience on the Graphic Design page.', fields: pageFields('design') },
+    { id: 'design-items', group: 'Graphic Design', label: 'Projects', title: 'Graphic design projects', anchor: 'design', kind: 'list', path: ['design', 'projects'], help: 'The first project is shown large at the top of the page.', itemTitle: function (p) { return p.title; }, itemImage: function (p) { return p.image; }, newItem: newProject, fields: projectFields('design') },
+
+    { id: 'photography-page', group: 'Photography', label: 'Page & text', title: 'Photography: page & text', anchor: 'photography', kind: 'object', path: ['photography'], help: 'The words, colour, tools and experience on the Photography page.', fields: pageFields('photography') },
+    { id: 'photography-items', group: 'Photography', label: 'Photos', title: 'Photos', anchor: 'photography', kind: 'list', path: ['photography', 'photos'], help: 'Upload a photo, give it a title, done. Photos open full screen when clicked. Photos with the same category get a filter button.', itemTitle: function (p) { return p.title; }, itemImage: function (p) { return p.image; },
+        newItem: function () { return { image: '', title: '', category: '', year: String(new Date().getFullYear()), alt: '' }; },
+        fields: [{ key: 'image', label: 'Photo', type: 'image' }, T('title', 'Title'), T('category', 'Category', { half: true }), T('year', 'Year', { half: true }), T('alt', 'Description', { hint: 'What the photo shows, for screen readers.' })] }
 ];
+
+/* Older content.js files kept the three lists at the top level. Accept them too. */
+function normalise(s) {
+    if (!s) return s;
+    ['engineering', 'design'].forEach(function (k) { if (Array.isArray(s[k])) s[k] = { projects: s[k] }; });
+    if (Array.isArray(s.photography)) s.photography = { photos: s.photography };
+    return s;
+}
+function getTarget(s, create) {
+    var o = site;
+    for (var i = 0; i < s.path.length; i++) {
+        var k = s.path[i], last = i === s.path.length - 1;
+        if (o[k] == null) { if (!create) return null; o[k] = last && s.kind === 'list' ? [] : {}; }
+        o = o[k];
+    }
+    return o;
+}
+function sectionById(id) { return SECTIONS.find(function (x) { return x.id === id; }); }
 
 /* ======================= STATE ======================= */
 var DRAFT_KEY = 'site-admin-draft', GH_KEY = 'site-admin-github';
 var clone = function (o) { return JSON.parse(JSON.stringify(o)); };
-var site = window.SITE ? clone(window.SITE) : null;
-var savedJSON = site ? JSON.stringify(site) : '';
+var site = window.SITE ? normalise(clone(window.SITE)) : null;
+var savedJSON = '';
 var newImages = {};           // "images/x.jpg" -> data URL, waiting to be saved
 var previewImages = {};       // already downloaded; kept so the preview can still show them
 var gh = null, dirHandle = null, current = 'profile';
@@ -316,7 +362,8 @@ var store = {
 var slugify = function (s) { return String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60); };
 
 if (!site) { $('#loadError').hidden = false; site = {}; }
-SECTIONS.forEach(function (s) { if (site[s.key] == null) site[s.key] = s.kind === 'list' ? [] : {}; });
+SECTIONS.forEach(function (s) { getTarget(s, true); });
+savedJSON = JSON.stringify(site);
 
 /* ======================= TOAST ======================= */
 var toastTimer;
@@ -344,19 +391,21 @@ window.addEventListener('beforeunload', function (e) { if (isDirty()) { e.preven
 /* ======================= SIDEBAR ======================= */
 function renderSide() {
     var side = $('#side'); side.innerHTML = '';
+    var lastGroup = null;
     SECTIONS.forEach(function (s) {
-        var b = document.createElement('button'); b.type = 'button'; b.dataset.key = s.key;
-        b.innerHTML = '<span>' + s.label + '</span><span class="count"></span>';
-        b.setAttribute('aria-current', s.key === current ? 'true' : 'false');
-        b.addEventListener('click', function () { current = s.key; renderSide(); renderEditor(); refreshPreview(true); $('#editor').scrollTop = 0; });
+        if (s.group !== lastGroup) { lastGroup = s.group; side.appendChild(el('div', { class: 'grp' }, esc(s.group))); }
+        var b = document.createElement('button'); b.type = 'button'; b.dataset.key = s.id;
+        b.innerHTML = '<span>' + esc(s.label) + '</span><span class="count"></span>';
+        b.setAttribute('aria-current', s.id === current ? 'true' : 'false');
+        b.addEventListener('click', function () { current = s.id; renderSide(); renderEditor(); refreshPreview(true); $('#editor').scrollTop = 0; });
         side.appendChild(b);
     });
     updateCounts();
 }
 function updateCounts() {
     SECTIONS.forEach(function (s) {
-        var c = document.querySelector('#side [data-key="' + s.key + '"] .count'); if (!c) return;
-        c.textContent = s.kind === 'list' ? (site[s.key] || []).length : s.kind === 'groups' ? Object.keys(site[s.key] || {}).length : '';
+        var c = document.querySelector('#side [data-key="' + s.id + '"] .count'); if (!c) return;
+        c.textContent = s.kind === 'list' ? (getTarget(s) || []).length : '';
     });
 }
 
@@ -620,57 +669,26 @@ function renderList(container, arr, cfg, openIndex) {
     });
 }
 
-/* Skills: named groups of tags */
-function renderGroups(container) {
-    var obj = site.skills; container.innerHTML = '';
-    var names = Object.keys(obj);
-    names.forEach(function (name, gi) {
-        var card = el('div', { class: 'item' }); var body = el('div', { class: 'item-body' }); body.style.borderTop = '0';
-        var g = { name: name, items: obj[name] };
-        var nameId = uid(), tagId = uid();
-        var nIn = el('input', { type: 'text', id: nameId }); nIn.value = name;
-        var tIn = el('input', { type: 'text', id: tagId }); tIn.value = (obj[name] || []).join(', ');
-        function rebuild() {
-            var out = {}; Object.keys(site.skills).forEach(function (k, ki) { if (ki === gi) out[g.name || 'Untitled'] = g.items; else out[k] = site.skills[k]; });
-            site.skills = out; obj = out; names = Object.keys(out);
-        }
-        nIn.addEventListener('change', function () { g.name = nIn.value.trim() || 'Untitled'; rebuild(); changed(); renderGroups(container); });
-        tIn.addEventListener('input', function () { g.items = tIn.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean); site.skills[g.name] = g.items; changed(); });
-        var del = el('button', { type: 'button', class: 'btn btn-sm btn-ghost btn-danger' }, 'Delete group');
-        del.addEventListener('click', function () {
-            if (!del.classList.contains('armed')) { del.classList.add('armed'); del.textContent = 'Click again to delete'; setTimeout(function () { del.classList.remove('armed'); del.textContent = 'Delete group'; }, 3000); return; }
-            delete site.skills[name]; changed(); renderGroups(container);
-        });
-        body.appendChild(wrapField({ label: 'Group name' }, nIn, nameId));
-        body.appendChild(wrapField({ label: 'Skills', hint: 'Separate with commas.' }, tIn, tagId));
-        del.style.alignSelf = 'start'; body.appendChild(del);
-        card.appendChild(body); container.appendChild(card);
-    });
-    var add = el('button', { type: 'button', class: 'btn btn-sm' }, '+ Add group'); add.style.alignSelf = 'start';
-    add.addEventListener('click', function () { var n = 'New group', k = 2; while (site.skills[n]) n = 'New group ' + (k++); site.skills[n] = []; changed(); renderGroups(container); });
-    container.appendChild(add);
-}
-
 /* ======================= EDITOR ======================= */
 function renderEditor() {
-    var s = SECTIONS.find(function (x) { return x.key === current; });
+    var s = sectionById(current);
     var root = $('#editorInner'); root.innerHTML = '';
-    root.appendChild(el('h1', null, esc(s.label)));
+    root.appendChild(el('h1', null, esc(s.title || s.label)));
     if (s.help) root.appendChild(el('p', { class: 'help' }, esc(s.help)));
     var box = el('div', { class: 'list' }); box.style.gap = '1.1rem'; root.appendChild(box);
-    if (s.kind === 'object') renderFields(box, site[s.key], s.fields);
-    else if (s.kind === 'list') renderList(box, site[s.key], Object.assign({ label: '' }, s), site[s.key].length === 1 ? 0 : undefined);
-    else if (s.kind === 'groups') renderGroups(box);
+    var data = getTarget(s, true);
+    if (s.kind === 'object') renderFields(box, data, s.fields);
+    else if (s.kind === 'list') renderList(box, data, Object.assign({ label: '' }, s), data.length === 1 ? 0 : undefined);
 }
 
 /* ======================= PREVIEW ======================= */
 var pv = $('#pv');
 function refreshPreview(jump) {
-    var s = SECTIONS.find(function (x) { return x.key === current; });
+    var s = sectionById(current);
     var y = 0;
     if (!jump) { try { y = pv.contentWindow.scrollY || 0; } catch (e) {} }
-    pv.onload = function () { if (y) { try { pv.contentWindow.scrollTo(0, y); } catch (e) {} } };
-    pv.src = 'index.html?preview&v=' + Date.now() + (jump || !y ? '#' + s.anchor : '');
+    pv.onload = function () { if (y) { try { pv.contentWindow.scrollTo({ top: y, left: 0, behavior: 'instant' }); } catch (e) {} } };
+    pv.src = 'index.html?preview&v=' + Date.now() + '#' + s.anchor;
 }
 document.querySelectorAll('.seg button').forEach(function (b) {
     b.addEventListener('click', function () {
@@ -723,7 +741,7 @@ function ghApi(path, opts) {
 function ghLoad() {
     return ghApi('content.js').then(function (j) {
         if (!j) throw new Error('No content.js found in that repository' + (gh.folder ? ' folder' : '') + '. Upload the site files first.');
-        var remote = parseContentJs(textFromB64(j.content));
+        var remote = normalise(parseContentJs(textFromB64(j.content)));
         if (!remote) throw new Error('content.js in the repository could not be read.');
         return remote;
     });
@@ -787,11 +805,12 @@ function finishSave(keepImagesForPreview) {
 
 $('#saveBtn').addEventListener('click', function () {
     var btn = $('#saveBtn'); if (btn.disabled) return;
-    var missing = ['engineering', 'design'].some(function (k) { return (site[k] || []).some(function (p) { return !p.title; }); });
+    var projectLists = [(site.engineering || {}).projects || [], (site.design || {}).projects || []];
+    var missing = projectLists.some(function (l) { return l.some(function (p) { return !p.title; }); });
     if (missing) { toast('Some projects have no title. Add one before saving.', true); return; }
-    ['engineering', 'design'].forEach(function (k) {
+    projectLists.forEach(function (list) {
         var seen = {};
-        (site[k] || []).forEach(function (p) { if (!p.slug) p.slug = slugify(p.title); var s = p.slug, n = 2; while (seen[p.slug]) p.slug = s + '-' + (n++); seen[p.slug] = 1; });
+        list.forEach(function (p) { if (!p.slug) p.slug = slugify(p.title); var s = p.slug, n = 2; while (seen[p.slug]) p.slug = s + '-' + (n++); seen[p.slug] = 1; });
     });
     btn.disabled = true; var label = btn.textContent; btn.textContent = 'Saving…';
     var job = gh ? ghPublish() : dirHandle ? writeFolder() : Promise.resolve(downloadSave());

@@ -1,6 +1,8 @@
 /* =====================================================================
    SCRIPT.JS — builds the page from content.js.
    You normally don't need to edit this file.
+   Pages: home, engineering, design, photography (switched by the link
+   after the # in the address, e.g. yoursite.com/#design).
    ===================================================================== */
 (function () {
   'use strict';
@@ -30,6 +32,10 @@
   }
   if (!S) { console.error('content.js did not load. Check it for a missing comma or quote.'); return; }
 
+  /* Older content.js files kept the lists at the top level. Accept them too. */
+  ['engineering', 'design'].forEach(function (k) { if (Array.isArray(S[k])) S[k] = { projects: S[k] }; });
+  if (Array.isArray(S.photography)) S.photography = { photos: S.photography };
+
   var root = document.documentElement;
   var $ = function (sel, el) { return (el || document).querySelector(sel); };
   var bind = function (name) { return document.querySelector('[data-bind="' + name + '"]'); };
@@ -40,15 +46,42 @@
     });
   };
   var pad = function (n) { return (n < 10 ? '0' : '') + n; };
-  var tagList = function (tags) {
-    return has(tags) ? '<ul class="tags">' + tags.map(function (t) { return '<li class="tag">' + esc(t) + '</li>'; }).join('') + '</ul>' : '';
+  var isHex = function (v) { return /^#[0-9a-f]{6}$/i.test(v || ''); };
+  var tagList = function (tags, cls) {
+    return has(tags) ? '<ul class="tags' + (cls ? ' ' + cls : '') + '">' + tags.map(function (t) { return '<li class="tag">' + esc(t) + '</li>'; }).join('') + '</ul>' : '';
   };
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   var P = S.profile || {}, C = S.contact || {}, T = S.theme || {};
   var fullName = (P.firstName || '') + ' ' + (P.lastName || '');
 
+  /* ---------- THE THREE SECTIONS ---------- */
+  var KEYS = ['engineering', 'design', 'photography'];
+  var DEF = {
+    engineering: { navLabel: 'Engineering', accent: '#2F6BFF' },
+    design:      { navLabel: 'Graphic Design', accent: '#FF4F6D' },
+    photography: { navLabel: 'Photography', accent: '#F2A93B' }
+  };
+  var PG = {};
+  KEYS.forEach(function (k) {
+    var s = S[k] || {};
+    PG[k] = Object.assign({}, s);
+    PG[k].navLabel = has(s.navLabel) ? s.navLabel : DEF[k].navLabel;
+    PG[k].accent = isHex(s.accent) ? s.accent : DEF[k].accent;
+    root.style.setProperty('--c-' + k, PG[k].accent);
+  });
+  var eng = PG.engineering.projects || [], des = PG.design.projects || [], photos = PG.photography.photos || [];
+  var groups = { engineering: eng, design: des };
+  var num = function (k) { return pad(KEYS.indexOf(k) + 1); };
+
   /* ---------- THEME ---------- */
-  if (has(T.accent)) root.style.setProperty('--accent', T.accent);
+  var homeAccent = isHex(T.accent) ? T.accent : '#D9822B';
+  function setAccent(hex) {
+    var n = parseInt(hex.slice(1), 16), lum = (0.299 * (n >> 16 & 255) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255;
+    root.style.setProperty('--accent', hex);
+    root.style.setProperty('--on-accent', lum > 0.6 ? '#14130F' : '#FFFFFF');
+  }
+  setAccent(homeAccent);
   var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
   function storedMode() { try { return localStorage.getItem('site-theme'); } catch (e) { return null; } }
   function resolvedMode() {
@@ -68,21 +101,51 @@
     syncModeIcon();
   });
 
-  /* ---------- HERO + ABOUT ---------- */
+  /* ---------- NAV + FOOTER LINKS ---------- */
   bind('logo').innerHTML = esc(P.firstName || 'Portfolio') + '<span>.</span>';
-  bind('eyebrow').textContent = [P.location].concat(P.roles || []).filter(has).join(' · ');
-  bind('name').innerHTML = esc(P.firstName) + '<br><span class="last">' + esc(P.lastName) + '</span>';
-  bind('roles').innerHTML = (P.roles || []).map(function (r) { return '<li>' + esc(r) + '</li>'; }).join('');
-  bind('tagline').textContent = P.tagline || '';
+  bind('navMain').innerHTML = KEYS.map(function (k) {
+    return '<li><a href="#' + k + '" data-view-link="' + k + '" style="--dot:' + PG[k].accent + '">' + esc(PG[k].navLabel) + '</a></li>';
+  }).join('');
+  bind('footNav').innerHTML = KEYS.map(function (k) {
+    return '<a href="#' + k + '" style="--dot:' + PG[k].accent + '">' + esc(PG[k].navLabel) + '</a>';
+  }).join('');
+  bind('footer').textContent = '© ' + new Date().getFullYear() + ' ' + fullName + (P.location ? ' · ' + P.location : '');
 
+  /* ---------- HOME: HERO ---------- */
+  bind('eyebrow').textContent = [P.location, 'Portfolio'].filter(has).join(' · ');
+  bind('name').innerHTML = esc(P.firstName) + '<br><span class="last">' + esc(P.lastName) + '</span>';
+  bind('tagline').textContent = P.tagline || '';
+  bind('heroLinks').innerHTML = KEYS.map(function (k) {
+    return '<li><a href="#' + k + '" style="--dot:' + PG[k].accent + '">' + esc(PG[k].navLabel) + '</a></li>';
+  }).join('');
   var heroImg = bind('heroImage');
   if (has(P.heroImage)) { heroImg.src = P.heroImage; heroImg.alt = P.heroImageAlt || fullName; }
   else heroImg.closest('figure').hidden = true;
-  bind('heroCaption').innerHTML =
-    '<div><b>Name</b>' + esc(P.initials || '') + '</div>' +
-    '<div><b>Field</b>Civil Eng.</div>' +
-    '<div><b>Based</b>' + esc(P.location || '') + '</div>';
 
+  /* ---------- HOME: THE THREE DOORS ---------- */
+  var TRUSS = '<svg class="truss" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' +
+    '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">' +
+    '<path d="M50 190H350M50 120H350"/><path d="M50 120L90 190L130 120L170 190L210 120L250 190L290 120L330 190L350 160"/>' +
+    '<path d="M90 120V190M170 120V190M250 120V190M330 120V190" stroke-width="1.2" opacity=".6"/>' +
+    '<path d="M50 190L38 214H62ZM350 190L338 214H362Z" stroke-width="1.6"/></g>' +
+    '<g class="dim" fill="none" stroke-width="1.4"><path d="M50 246H350M50 238V254M350 238V254"/></g>' +
+    '<text x="200" y="272" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="currentColor" opacity=".7">12 000</text></svg>';
+  function countText(k) {
+    var n = k === 'photography' ? photos.length : (groups[k] || []).length;
+    return n + (k === 'photography' ? (n === 1 ? ' photo' : ' photos') : (n === 1 ? ' project' : ' projects'));
+  }
+  bind('gates').innerHTML = KEYS.map(function (k) {
+    var g = PG[k];
+    var art = has(g.homeImage) ? '<img src="' + esc(g.homeImage) + '" alt="" loading="lazy">'
+      : k === 'engineering' ? TRUSS : '<div class="gate-fill" style="--c:' + g.accent + '">' + esc(g.navLabel) + '</div>';
+    return '<a class="gate reveal" href="#' + k + '" style="--c:' + g.accent + '">' +
+      '<div class="gate-art' + (k === 'engineering' && !has(g.homeImage) ? ' blueprint' : '') + '">' + art + '</div>' +
+      '<div class="gate-body"><span class="gate-num">' + num(k) + ' · ' + esc(countText(k)) + '</span>' +
+      '<h3>' + esc(g.navLabel) + '</h3><p>' + esc(g.blurb || '') + '</p>' + tagList(g.focus) +
+      '<span class="more">Open section <i>→</i></span></div></a>';
+  }).join('');
+
+  /* ---------- HOME: ABOUT / TESTIMONIALS ---------- */
   var A = S.about || {};
   bind('aboutHeading').textContent = A.heading || '';
   bind('hello').textContent = "Hello, I'm " + (P.firstName || '') + '.';
@@ -100,14 +163,13 @@
   var cvRow = bind('cvRow');
   if (has(P.cvUrl)) cvRow.innerHTML = '<a class="btn btn-outline" href="' + esc(P.cvUrl) + '" target="_blank" rel="noopener">Download CV</a>';
   else cvRow.hidden = true;
-
-  /* ---------- SERVICES ---------- */
-  bind('services').innerHTML = (S.services || []).map(function (s, i) {
-    return '<a class="service reveal" href="' + esc(s.link || '#') + '">' +
-      '<span class="service-num">' + pad(i + 1) + '</span>' +
-      '<h3>' + esc(s.title) + '</h3><p>' + esc(s.text) + '</p>' + tagList(s.tags) +
-      '<span class="more">View work →</span></a>';
-  }).join('');
+  var tq = S.testimonials || [];
+  if (tq.length) {
+    $('#testimonials').hidden = false;
+    bind('testimonials').innerHTML = tq.map(function (q) {
+      return '<blockquote class="quote reveal"><p>“' + esc(q.quote) + '”</p><cite>' + esc([q.author, q.year].filter(has).join(', ')) + '</cite></blockquote>';
+    }).join('');
+  }
 
   /* ---------- PROJECT COVERS ---------- */
   function sheetCover(p, index) {
@@ -121,48 +183,96 @@
     return '<div class="card-cover" aria-hidden="true">' + esc(p.discipline || p.title) + '</div>';
   }
 
-  /* ---------- ENGINEERING ---------- */
-  var eng = S.engineering || [];
-  bind('engineering').innerHTML = eng.map(function (p, i) {
-    return '<button type="button" class="sheet-card reveal" data-open="engineering:' + i + '">' + sheetCover(p, i) +
-      '<div class="sheet-body"><h3>' + esc(p.title) + '</h3><p>' + esc(p.summary) + '</p>' + tagList(p.tags) + '</div></button>';
-  }).join('');
-  if (!eng.length) $('#engineering').hidden = true;
+  /* ---------- THE THREE SECTION PAGES ---------- */
+  var viewEl = { home: document.getElementById('view-home') };
+  KEYS.forEach(function (k) { viewEl[k] = document.getElementById('view-' + k); });
 
-  /* ---------- PHOTOGRAPHY ---------- */
-  var photos = S.photography || [];
-  var pg = bind('photography');
-  pg.classList.add('count-' + Math.min(photos.length, 3));
-  pg.innerHTML = photos.map(function (ph, i) {
-    return '<button type="button" class="photo reveal" data-photo="' + i + '" aria-label="View ' + esc(ph.title) + ' full screen">' +
-      '<figure><img src="' + esc(ph.image) + '" alt="' + esc(ph.alt || ph.title) + '" loading="lazy">' +
-      '<figcaption><strong>' + esc(ph.title) + '</strong><span>' + esc([ph.category, ph.year].filter(has).join(' · ')) + '</span></figcaption></figure></button>';
-  }).join('');
-  if (!photos.length) $('#photography').hidden = true;
-
-  /* ---------- DESIGN ---------- */
-  var des = S.design || [];
-  bind('design').innerHTML = des.map(function (p, i) {
-    return '<button type="button" class="card reveal" data-open="design:' + i + '"><div class="card-media">' + designCover(p) + '</div>' +
-      '<div class="card-body"><span class="card-kicker">' + esc(p.discipline) + '</span><h3>' + esc(p.title) + '</h3><p>' + esc(p.summary) + '</p>' + tagList(p.tags) + '</div></button>';
-  }).join('');
-  if (!des.length) $('#design').hidden = true;
-
-  /* ---------- SKILLS / EXPERIENCE / TESTIMONIALS ---------- */
-  var sk = S.skills || {};
-  bind('skills').innerHTML = Object.keys(sk).map(function (g) {
-    return '<div class="skill-group reveal"><h3>' + esc(g) + '</h3>' + tagList(sk[g]) + '</div>';
-  }).join('');
-  bind('experience').innerHTML = (S.experience || []).map(function (e) {
-    return '<li class="reveal"><p class="tl-years">' + esc(e.years) + '</p><h3>' + esc(e.title) + '</h3><p>' + esc(e.text) + '</p></li>';
-  }).join('');
-  var tq = S.testimonials || [];
-  if (tq.length) {
-    $('#testimonials').hidden = false;
-    bind('testimonials').innerHTML = tq.map(function (q) {
-      return '<blockquote class="quote reveal"><p>“' + esc(q.quote) + '”</p><cite>' + esc([q.author, q.year].filter(has).join(', ')) + '</cite></blockquote>';
+  function pageHeader(k) {
+    var g = PG[k];
+    var facts = (g.facts || []).filter(function (f) { return has(f.label) || has(f.value); }).map(function (f) {
+      return '<div><dt>' + esc(f.label) + '</dt><dd>' + esc(f.value) + '</dd></div>';
     }).join('');
+    return '<div class="ph-band" data-kind="' + k + '"><header class="page-hero">' +
+      '<div class="ph-text"><p class="eyebrow">' + num(k) + ' — ' + esc(g.navLabel) + '</p>' +
+      '<h1>' + esc(g.heading || g.navLabel) + '</h1>' +
+      (has(g.intro) ? '<p class="ph-intro">' + esc(g.intro) + '</p>' : '') + tagList(g.focus, 'focus') + '</div>' +
+      (facts ? '<dl class="ph-facts">' + facts + '</dl>' : '') + '</header></div>';
   }
+  function chipBar(k, list, field) {
+    var seen = [];
+    list.forEach(function (it) { var v = it[field]; if (has(v) && seen.indexOf(v) < 0) seen.push(v); });
+    if (seen.length < 2 || list.length < 4) return '';
+    return '<div class="chips" data-for="' + k + '" role="group" aria-label="Filter">' +
+      '<button type="button" class="chip" data-chip="" aria-pressed="true">All</button>' +
+      seen.map(function (v) { return '<button type="button" class="chip" data-chip="' + esc(v) + '" aria-pressed="false">' + esc(v) + '</button>'; }).join('') + '</div>';
+  }
+  function toolsAndTimeline(g) {
+    var tools = has(g.skills) ? '<div class="split-col"><h2 class="block-title">' + esc(g.skillsTitle || 'Tools') + '</h2>' + tagList(g.skills, 'pills') + '</div>' : '';
+    var tl = has(g.timeline) ? '<div class="split-col"><h2 class="block-title">' + esc(g.timelineTitle || 'Experience') + '</h2><ol class="timeline">' +
+      g.timeline.map(function (e) { return '<li><p class="tl-years">' + esc(e.years) + '</p><h3>' + esc(e.title) + '</h3><p>' + esc(e.text) + '</p></li>'; }).join('') + '</ol></div>' : '';
+    return (tools || tl) ? '<section class="block split reveal">' + tools + tl + '</section>' : '';
+  }
+  function ctaAndSiblings(k) {
+    var g = PG[k];
+    return '<section class="cta reveal"><div class="cta-inner"><div><h2>' + esc(g.ctaHeading || "Let's work together") + '</h2>' +
+      (has(g.ctaText) ? '<p>' + esc(g.ctaText) + '</p>' : '') + '</div><a class="btn btn-primary" href="#contact">Get in touch</a></div></section>' +
+      '<section class="block"><p class="eyebrow">Also explore</p><div class="siblings">' +
+      KEYS.filter(function (o) { return o !== k; }).map(function (o) {
+        return '<a class="sib reveal" href="#' + o + '" style="--c:' + PG[o].accent + '"><small>' + num(o) + '</small><strong>' + esc(PG[o].navLabel) + '</strong>' +
+          '<span>' + esc(PG[o].blurb || '') + '</span><i>→</i></a>';
+      }).join('') + '</div></section>';
+  }
+  function buildView(k) {
+    var g = PG[k], list = k === 'photography' ? photos : groups[k];
+    var field = k === 'photography' ? 'category' : 'discipline';
+    var title = g.listTitle || (k === 'engineering' ? 'Selected projects' : k === 'design' ? 'Selected work' : 'Gallery');
+    viewEl[k].innerHTML = pageHeader(k) +
+      '<section class="block"><div class="block-head"><h2 class="block-title">' + esc(title) + '</h2>' + chipBar(k, list, field) + '</div>' +
+      '<div class="grid grid-' + k + '" data-grid="' + k + '"></div></section>' +
+      toolsAndTimeline(g) + ctaAndSiblings(k);
+    paintGrid(k, '', true);
+  }
+
+  var shownPhotos = [];
+  function paintGrid(k, filter, quiet) {
+    var grid = document.querySelector('[data-grid="' + k + '"]'), h = '';
+    if (k === 'engineering') {
+      h = eng.map(function (p, i) { return { p: p, i: i }; })
+        .filter(function (x) { return !filter || x.p.discipline === filter; })
+        .map(function (x) {
+          return '<button type="button" class="sheet-card reveal" data-open="engineering:' + x.i + '">' + sheetCover(x.p, x.i) +
+            '<div class="sheet-body"><h3>' + esc(x.p.title) + '</h3><p>' + esc(x.p.summary) + '</p>' + tagList(x.p.tags) +
+            '<span class="more">Read the write-up <i>→</i></span></div></button>';
+        }).join('');
+    } else if (k === 'design') {
+      var vis = des.map(function (p, i) { return { p: p, i: i }; }).filter(function (x) { return !filter || x.p.discipline === filter; });
+      h = vis.map(function (x, n) {
+        var feat = !filter && vis.length > 1 && n === 0;
+        return '<button type="button" class="card reveal' + (feat ? ' featured' : '') + '" data-open="design:' + x.i + '"><div class="card-media">' + designCover(x.p) + '</div>' +
+          '<div class="card-body"><span class="card-kicker">' + esc([x.p.discipline, x.p.year].filter(has).join(' · ')) + '</span><h3>' + esc(x.p.title) + '</h3>' +
+          '<p>' + esc(x.p.summary) + '</p>' + tagList(x.p.tags) + '<span class="more">View project <i>→</i></span></div></button>';
+      }).join('');
+    } else {
+      shownPhotos = photos.filter(function (ph) { return !filter || ph.category === filter; });
+      grid.className = 'grid grid-photography count-' + Math.min(shownPhotos.length, 3);
+      h = shownPhotos.map(function (ph, i) {
+        return '<button type="button" class="photo reveal" data-photo="' + i + '" aria-label="View ' + esc(ph.title) + ' full screen">' +
+          '<figure><img src="' + esc(ph.image) + '" alt="' + esc(ph.alt || ph.title) + '" loading="lazy">' +
+          '<figcaption><strong>' + esc(ph.title) + '</strong><span>' + esc([ph.category, ph.year].filter(has).join(' · ')) + '</span></figcaption></figure></button>';
+      }).join('');
+    }
+    grid.innerHTML = h || '<p class="empty">Coming soon.</p>';
+    if (!quiet) armReveal(grid);
+  }
+  KEYS.forEach(buildView);
+
+  document.addEventListener('click', function (e) {
+    var c = e.target.closest('[data-chip]');
+    if (!c) return;
+    var bar = c.parentNode;
+    bar.querySelectorAll('[data-chip]').forEach(function (x) { x.setAttribute('aria-pressed', x === c ? 'true' : 'false'); });
+    paintGrid(bar.getAttribute('data-for'), c.getAttribute('data-chip'));
+  });
 
   /* ---------- CONTACT ---------- */
   var links = [];
@@ -173,6 +283,10 @@
     if (has(s[1])) links.push('<li><a href="' + esc(s[1]) + '" target="_blank" rel="noopener"><span class="k">' + s[0] + '</span><span class="v">' + esc(s[1].replace(/^https?:\/\/(www\.)?/, '')) + ' ↗</span></a></li>');
   });
   bind('contactLinks').innerHTML = links.length ? links.join('') : '<li class="contact-empty">Add your email and social links in content.js.</li>';
+
+  var topic = $('#cf-topic');
+  topic.innerHTML = '<option value="">Something else / not sure yet</option>' + KEYS.map(function (k) { return '<option value="' + k + '">' + esc(PG[k].navLabel) + '</option>'; }).join('');
+  var topicLabel = function () { return topic.value ? PG[topic.value].navLabel : ''; };
 
   document.addEventListener('click', function (e) {
     var b = e.target.closest('[data-copy]');
@@ -196,14 +310,14 @@
       f.setAttribute('aria-invalid', valid ? 'false' : 'true'); if (!valid) ok = false;
     });
     if (!ok) { status.textContent = 'Please fill in your name, a valid email and a message.'; return; }
-    var data = { name: form.name.value.trim(), email: form.email.value.trim(), message: form.message.value.trim() };
+    var data = { topic: topicLabel(), name: form.name.value.trim(), email: form.email.value.trim(), message: form.message.value.trim() };
     if (has(C.formEndpoint)) {
       status.textContent = 'Sending…';
       fetch(C.formEndpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(data) })
         .then(function (r) { if (!r.ok) throw new Error(); status.textContent = 'Thanks, your message was sent. I will reply soon.'; form.reset(); })
         .catch(function () { status.textContent = 'The message could not be sent. Please email me directly' + (has(C.email) ? ' at ' + C.email : '') + '.'; });
     } else if (has(C.email)) {
-      var href = 'mailto:' + C.email + '?subject=' + encodeURIComponent('Portfolio enquiry from ' + data.name) +
+      var href = 'mailto:' + C.email + '?subject=' + encodeURIComponent('Portfolio enquiry' + (data.topic ? ' (' + data.topic + ')' : '') + ' from ' + data.name) +
         '&body=' + encodeURIComponent(data.message + '\n\n' + data.name + '\n' + data.email);
       window.location.href = href;
       status.textContent = 'Your email app should open with the message ready to send. If it does not, email ' + C.email + '.';
@@ -212,9 +326,7 @@
     }
   });
 
-  bind('footer').textContent = '© ' + new Date().getFullYear() + ' ' + fullName + ' · ' + (P.roles || []).join(' · ') + ' · ' + (P.location || '');
-
-  /* ---------- NAV ---------- */
+  /* ---------- NAV BEHAVIOUR ---------- */
   var nav = $('#nav'), menuBtn = $('#menuBtn');
   function setMenu(open) {
     nav.classList.toggle('menu-open', open);
@@ -223,37 +335,52 @@
     document.body.classList.toggle('locked', open);
   }
   menuBtn.addEventListener('click', function () { setMenu(!nav.classList.contains('menu-open')); });
-  document.querySelectorAll('#navLinks a').forEach(function (a) { a.addEventListener('click', function () { setMenu(false); }); });
+  document.querySelectorAll('#navMenu a, .nav-logo').forEach(function (a) { a.addEventListener('click', function () { setMenu(false); }); });
+  $('.nav-logo').addEventListener('click', function () {
+    if (current === 'home') window.scrollTo({ top: 0, left: 0, behavior: reduce ? 'auto' : 'smooth' });   // already on home: glide to the top
+  });
   var onScroll = function () { nav.classList.toggle('scrolled', window.scrollY > 20); };
   window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
 
-  if ('IntersectionObserver' in window) {
-    var navMap = {};
-    document.querySelectorAll('#navLinks a').forEach(function (a) { navMap[a.getAttribute('href').slice(1)] = a; });
-    var spy = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) {
-        if (en.isIntersecting && navMap[en.target.id]) {
-          Object.keys(navMap).forEach(function (k) { navMap[k].classList.remove('active'); });
-          navMap[en.target.id].classList.add('active');
-        }
-      });
-    }, { rootMargin: '-45% 0px -50% 0px' });
-    document.querySelectorAll('main section[id]').forEach(function (s) { spy.observe(s); });
-  }
-
   /* ---------- REVEAL ON SCROLL (only below the first screen) ---------- */
-  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if ('IntersectionObserver' in window && !reduce) {
-    var items = Array.prototype.filter.call(document.querySelectorAll('.reveal'), function (el) {
-      return el.getBoundingClientRect().top > window.innerHeight;
-    });
+  var motion = 'IntersectionObserver' in window && !reduce, ro = null;
+  if (motion) {
     root.classList.add('js-motion');
-    document.querySelectorAll('.reveal').forEach(function (el) { if (items.indexOf(el) < 0) el.classList.add('in'); });
-    var ro = new IntersectionObserver(function (entries) {
+    ro = new IntersectionObserver(function (entries) {
       entries.forEach(function (en) { if (en.isIntersecting) { en.target.classList.add('in'); ro.unobserve(en.target); } });
     }, { rootMargin: '0px 0px -8% 0px' });
-    items.forEach(function (el) { ro.observe(el); });
-    setTimeout(function () { items.forEach(function (el) { el.classList.add('in'); }); }, 4000); // safety net
+  }
+  function armReveal(scope) {
+    var els = Array.prototype.slice.call(scope.querySelectorAll('.reveal:not(.in)'));
+    if (!motion) { els.forEach(function (el) { el.classList.add('in'); }); return; }
+    els.forEach(function (el) {
+      if (el.getBoundingClientRect().top > window.innerHeight) ro.observe(el); else el.classList.add('in');
+    });
+    setTimeout(function () { els.forEach(function (el) { el.classList.add('in'); }); }, 4000); // safety net
+  }
+
+  /* ---------- PAGES (home / engineering / design / photography) ---------- */
+  var current = null, baseTitle = document.title;
+  function show(view) {
+    var changed = view !== current;
+    Object.keys(viewEl).forEach(function (v) { viewEl[v].hidden = v !== view; });
+    current = view;
+    root.setAttribute('data-view', view);
+    setAccent(view === 'home' ? homeAccent : PG[view].accent);
+    document.querySelectorAll('[data-view-link]').forEach(function (a) {
+      var on = a.getAttribute('data-view-link') === view;
+      a.classList.toggle('active', on);
+      if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+    document.title = view === 'home' ? baseTitle : PG[view].navLabel + ' · ' + fullName;
+    if (changed) {
+      try { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); } catch (e) { window.scrollTo(0, 0); }
+      armReveal(viewEl[view]);
+    }
+  }
+  function scrollToEl(id) {
+    var el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth' });
   }
 
   /* ---------- LIGHTBOX ---------- */
@@ -279,14 +406,14 @@
   $('#lbNext').addEventListener('click', function () { showLb(lbIndex + 1); });
   lb.addEventListener('click', function (e) { if (e.target === lb) closeLb(); });
 
-  var photoList = photos.map(function (ph) { return { src: ph.image, alt: ph.alt, caption: [ph.title, ph.category, ph.year].filter(has).join(' · ') }; });
-  pg.addEventListener('click', function (e) {
-    var b = e.target.closest('[data-photo]'); if (b) openLb(photoList, +b.getAttribute('data-photo'));
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-photo]');
+    if (!b) return;
+    openLb(shownPhotos.map(function (ph) { return { src: ph.image, alt: ph.alt, caption: [ph.title, ph.category, ph.year].filter(has).join(' · ') }; }), +b.getAttribute('data-photo'));
   });
 
   /* ---------- PROJECT DETAIL ---------- */
   var detail = $('#detail'), detailBody = $('#detailBody'), detailReturn = null;
-  var groups = { engineering: eng, design: des };
   var allProjects = [];
   ['engineering', 'design'].forEach(function (g) { groups[g].forEach(function (p, i) { allProjects.push({ group: g, index: i, p: p }); }); });
 
@@ -305,7 +432,7 @@
     var meta = [['Discipline', p.discipline], ['Year', p.year], ['Client', p.client]].filter(function (m) { return has(m[1]); })
       .map(function (m) { return '<div><b>' + m[0] + '</b>' + esc(m[1]) + '</div>'; }).join('');
     var html =
-      '<header class="detail-hero"><p class="eyebrow">' + (entry.group === 'engineering' ? 'Engineering project' : 'Design project') + '</p>' +
+      '<header class="detail-hero"><p class="eyebrow">' + esc(PG[entry.group].navLabel) + ' project</p>' +
       '<h1 id="detailTitle">' + esc(p.title) + '</h1>' + (meta ? '<div class="detail-meta">' + meta + '</div>' : '') + '</header>' +
       '<div class="detail-cover">' + cover + '</div><article class="detail-content">' +
       section('Overview', p.overview) + section('My role', p.role) + section('The challenge', p.challenge) + section('Process', p.process);
@@ -323,9 +450,11 @@
     detailBody._gallery = (p.gallery || []).map(function (g) { return { src: g, alt: p.title, caption: p.title }; });
   }
 
+  function viewHash() { return current && current !== 'home' ? '#' + current : location.pathname + location.search; }
   function openDetail(entry, push) {
     if (!entry) return;
     if (detail.hidden) detailReturn = document.activeElement;
+    show(entry.group);
     renderDetail(entry);
     detail.hidden = false; document.body.classList.add('locked');
     $('#detailClose').focus();
@@ -335,7 +464,7 @@
   function closeDetail(fromHistory) {
     if (detail.hidden) return;
     detail.hidden = true; document.body.classList.remove('locked');
-    if (!fromHistory && /^#work-/.test(location.hash)) { try { history.pushState(null, '', location.pathname + location.search); } catch (e) {} }
+    if (!fromHistory && /^#work-/.test(location.hash)) { try { history.pushState(null, '', viewHash()); } catch (e) {} }
     if (detailReturn) detailReturn.focus();
   }
 
@@ -346,14 +475,30 @@
     if (go) { openDetail(findBySlug(go.getAttribute('data-go'))); return; }
     var gal = e.target.closest('[data-gal]');
     if (gal) { openLb(detailBody._gallery, +gal.getAttribute('data-gal')); return; }
-    if (e.target.closest('[data-contact]')) { closeDetail(); detailReturn = null; $('#contact').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth' }); setTimeout(function () { $('#cf-name').focus({ preventScroll: true }); }, 500); }
+    if (e.target.closest('[data-contact]')) {
+      closeDetail(); detailReturn = null;
+      if (KEYS.indexOf(current) >= 0) topic.value = current;
+      scrollToEl('contact');
+      setTimeout(function () { $('#cf-name').focus({ preventScroll: true }); }, 500);
+    }
   });
   $('#detailClose').addEventListener('click', function () { closeDetail(); });
 
+  /* ---------- ROUTING ---------- */
   function route() {
-    var m = /^#work-(.+)$/.exec(location.hash);
-    if (m) openDetail(findBySlug(decodeURIComponent(m[1])), false);
-    else closeDetail(true);
+    var h = ''; try { h = decodeURIComponent((location.hash || '').replace(/^#\/?/, '')); } catch (e) {}
+    var m = /^work-(.+)$/.exec(h);
+    if (m) { var entry = findBySlug(m[1]); if (entry) { openDetail(entry, false); return; } }
+    closeDetail(true);
+    if (h === 'contact') {
+      if (!current) show('home');
+      if (KEYS.indexOf(current) >= 0) topic.value = current;
+      scrollToEl('contact');
+    } else if (h === 'about' || h === 'paths' || h === 'testimonials') {
+      show('home'); scrollToEl(h);
+    } else {
+      show(KEYS.indexOf(h) >= 0 ? h : 'home');
+    }
   }
   window.addEventListener('popstate', route);
   window.addEventListener('hashchange', route);
